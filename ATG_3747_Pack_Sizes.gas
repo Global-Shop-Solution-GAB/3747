@@ -1,0 +1,310 @@
+Program.Sub.ScreenSU.Start
+gui.F_Pack_Sizes..create
+gui.F_Pack_Sizes..caption("Pack Sizes")
+gui.F_Pack_Sizes..size(2500,2295)
+gui.F_Pack_Sizes..position(0,0)
+gui.F_Pack_Sizes..event(unload,f_pack_sizes_unload)
+gui.F_Pack_Sizes..alwaysontop(False)
+gui.F_Pack_Sizes..fontname("Arial")
+gui.F_Pack_Sizes..fontsize(8)
+gui.F_Pack_Sizes..forecolor(0)
+gui.F_Pack_Sizes..fontstyle(,,,,)
+gui.F_Pack_Sizes..BackColor(-2147483633)
+gui.F_Pack_Sizes..controlbox(True)
+gui.F_Pack_Sizes..maxbutton(False)
+gui.F_Pack_Sizes..minbutton(True)
+gui.F_Pack_Sizes..mousepointer(0)
+gui.F_Pack_Sizes..moveable(True)
+gui.F_Pack_Sizes..sizeable(False)
+gui.F_Pack_Sizes..ShowInTaskBar(True)
+gui.F_Pack_Sizes..titlebar(True)
+gui.F_Pack_Sizes.lbl1.create(label,"Minimum Order Quantity",True,1935,255,1,200,200,True,0,Arial,8,-2147483633,0)
+gui.F_Pack_Sizes.txtMinOrderQty.create(textbox,"0",True,2000,300,0,200,400,True,0,Arial,8,-2147483643,1)
+gui.F_Pack_Sizes.txtMinOrderQty.numericonly(1)
+gui.F_Pack_Sizes.txtMinOrderQty.event(gotfocus,txtminorderqty_gotfocus)
+gui.F_Pack_Sizes.lbl2.create(label,"Order Increment",True,1935,255,1,200,800,True,0,Arial,8,-2147483633,0)
+gui.F_Pack_Sizes.txtIncrements.create(textbox,"0",True,2000,300,0,200,1000,True,0,Arial,8,-2147483643,1)
+gui.F_Pack_Sizes.txtIncrements.numericonly(1)
+gui.F_Pack_Sizes.txtIncrements.event(gotfocus,txtincrements_gotfocus)
+gui.F_Pack_Sizes.cmdSave.create(button)
+gui.F_Pack_Sizes.cmdSave.caption("Save")
+gui.F_Pack_Sizes.cmdSave.visible(True)
+gui.F_Pack_Sizes.cmdSave.size(855,375)
+gui.F_Pack_Sizes.cmdSave.zorder(0)
+gui.F_Pack_Sizes.cmdSave.position(200,1400)
+gui.F_Pack_Sizes.cmdSave.enabled(True)
+gui.F_Pack_Sizes.cmdSave.fontname("Arial")
+gui.F_Pack_Sizes.cmdSave.fontsize(8)
+gui.F_Pack_Sizes.cmdSave.event(click,cmdsave_click)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.sPart.Declare(String)
+Variable.Global.sLoc.Declare(String)
+Variable.Global.fOrderQty.Declare(Float,0)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+'Coded by: SMC
+'Project Start Date: 3/25/2011
+'Hooks:
+'  INS010B-POPULATE-HOOK (000010120)
+'  INS010B-SCRIPT-1-HOOK (000010210)
+'  OES0201I-POPULATE-HOOK (000012010)
+'  OES0201I-SCRIPT-1-HOOK (000012410)
+'  OES0201I-SAVE-BTN-HOOK (000012230)
+'Notes:
+'  Quote # 2203 for Customer Unirac
+'  Description:
+'  A custom program will be created to help manage pack sizes.  Users will be able to set a Minimum Order Quantity and Order Increments on each inventory part from the Inventory Master.  When saving a line from the Order Entry screen,
+'  another program will use these amounts to calculate whether the entered quantity on the line is valid.  If it is not valid, the line will not be saved.
+'  Specification:
+'  - A Script button from the Inventory Master screen (Inventory > File > Inventory Parts > New/Open) will open a screen where you can set the Minimum Order Qty and Order Increment amounts.  For example, the following amounts for part 300123:
+'      Minimum Order Quantity: 60
+'      Order Increment: 20
+'  - A Script button from the Order Lines Screen (Order Entry > File > Sales Orders > New/Open > Lines) will allow the user to view these amounts for the part on the selected line.
+'  - Clicking the Save button on a line in the Order Lines screen will check to see if these amounts are set up, and if so, not allow the user to save the line unless the quantity is within the correct standard.  The basic formula the quantity must fall in is as follows:
+'       (Minimum Order Quantity) + [ (Order Increment) * X ], where X is some whole number.  Examples for correct quantities for part 300123:  60 (X=0), 80 (X=1), 100 (X=2), etc.
+'  - This only applies to orders entered directly in Global Shop, and not orders processed through EDI, imports, or the Business Web.
+'  Deliverables:
+'  1 GAB script
+'  1 Custom table with the following columns:  PART, LOC, MIN_ORDER_QTY, ORDER_INCREMENT
+
+F.Intrinsic.Control.If(V.Caller.Hook,=,10120)
+	V.Passed.000068.Set("Pack Sizes")
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ElseIf(V.Caller.Hook,=,12010)
+	V.Passed.000162.Set("Pack Sizes")
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.EndIf
+
+F.ODBC.connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.Control.If(V.Caller.Hook,=,10210)
+	F.Intrinsic.String.GSSPartString(V.Passed.000007,V.Passed.000008,V.Global.sPart)
+	V.Global.sLoc.Set(V.Passed.000009)
+	F.Intrinsic.Control.If(V.Caller.Switches,=,"V")
+		Gui.F_Pack_Sizes.cmdSave.Enabled(False)
+		Gui.F_Pack_Sizes.cmdSave.Visible(False)
+		Gui.F_Pack_Sizes.txtIncrements.Enabled(False)
+		Gui.F_Pack_Sizes.txtMinOrderQty.Enabled(False)
+		Gui.F_Pack_Sizes..Size(V.Screen.F_Pack_Sizes.Width,2000)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.CallSub(Edit_pack_sizes)
+	F.Intrinsic.Control.If(V.Caller.Switches,<>,"V")
+		Gui.F_Pack_Sizes.txtMinOrderQty.SetFocus
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.ElseIf(V.Caller.Hook,=,12410)
+	F.Intrinsic.String.GSSPartString(V.Passed.000052,V.Passed.000053,V.Global.sPart)
+	V.Global.sLoc.Set(V.Passed.000054)
+	Gui.F_Pack_Sizes.cmdSave.Enabled(False)
+	Gui.F_Pack_Sizes.cmdSave.Visible(False)
+	Gui.F_Pack_Sizes.txtIncrements.Enabled(False)
+	Gui.F_Pack_Sizes.txtMinOrderQty.Enabled(False)
+	Gui.F_Pack_Sizes..Size(V.Screen.F_Pack_Sizes.Width,2000)
+	F.Intrinsic.Control.CallSub(Edit_pack_sizes)
+F.Intrinsic.Control.ElseIf(V.Caller.Hook,=,12230)
+	F.Intrinsic.String.GSSPartString(V.Passed.000052,V.Passed.000053,V.Global.sPart)
+	V.Global.sLoc.Set(V.Passed.000054)
+	V.Global.fOrderQty.Set(V.Passed.000007)
+	F.Intrinsic.Control.CallSub(Check_valid_qty)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+program.sub.f_pack_sizes_unload.start
+F.Intrinsic.Control.SetErrorHandler("f_pack_sizes_unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+f.ODBC.Connection!conx.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("f_pack_sizes_unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+program.sub.f_pack_sizes_unload.End
+
+program.sub.txtminorderqty_gotfocus.start
+F.Intrinsic.Control.SetErrorHandler("txtminorderqty_gotfocus_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+gui.F_Pack_Sizes.txtMinOrderQty.SelectAll
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("txtminorderqty_gotfocus_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+program.sub.txtminorderqty_gotfocus.End
+
+program.sub.cmdsave_click.start
+F.Intrinsic.Control.SetErrorHandler("cmdsave_click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sQuery.Declare(String)
+
+F.Intrinsic.String.Concat("SELECT * FROM ATG_3747_PACK_SIZES WHERE PART='",V.Global.sPart,"' AND LOC='",V.Global.sLoc,"'",V.Local.sQuery)
+F.ODBC.Connection!conx.OpenRecordsetRW("rstPack",V.Local.sQuery)
+F.Intrinsic.Control.If(V.ODBC.conx!rstPack.EOF,=,True)
+	F.ODBC.conx!rstPack.AddNew
+	F.ODBC.conx!rstPack.Set!PART(V.Global.sPart)
+	F.ODBC.conx!rstPack.Set!LOC(V.Global.sLoc)
+F.Intrinsic.Control.EndIf
+F.ODBC.conx!rstPack.Set!MIN_ORDER_QTY(V.Screen.F_Pack_Sizes!txtMinOrderQty.Text)
+F.ODBC.conx!rstPack.Set!ORDER_INCREMENT(V.Screen.F_Pack_Sizes!txtIncrements.Text)
+F.ODBC.conx!rstPack.Update
+
+F.ODBC.conx!rstPack.Close
+
+F.Intrinsic.Control.CallSub(F_pack_sizes_unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdsave_click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+program.sub.cmdsave_click.End
+
+program.sub.txtincrements_gotfocus.start
+F.Intrinsic.Control.SetErrorHandler("txtincrements_gotfocus_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+gui.F_Pack_Sizes.txtIncrements.SelectAll
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("txtincrements_gotfocus_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+program.sub.txtincrements_gotfocus.End
+
+Program.Sub.Edit_Pack_Sizes.Start
+F.Intrinsic.Control.SetErrorHandler("Edit_Pack_Sizes_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sQuery.Declare(String)
+
+F.Intrinsic.Control.If(V.Global.sPart.Trim,=,"")
+	F.Intrinsic.UI.Msgbox("Please select a part")
+	F.Intrinsic.Control.CallSub(F_pack_sizes_unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Concat("SELECT * FROM ATG_3747_PACK_SIZES WHERE PART='",V.Global.sPart,"' AND LOC='",V.Global.sLoc,"'",V.Local.sQuery)
+F.ODBC.Connection!conx.OpenRecordsetRO("rstPack",V.Local.sQuery)
+F.Intrinsic.Control.If(V.ODBC.conx!rstPack.EOF,<>,True)
+	Gui.F_Pack_Sizes.txtMinOrderQty.Text(V.ODBC.conx!rstPack.FieldValTrim!MIN_ORDER_QTY)
+	Gui.F_Pack_Sizes.txtIncrements.Text(V.ODBC.conx!rstPack.FieldValTrim!ORDER_INCREMENT)
+F.Intrinsic.Control.EndIf
+F.ODBC.conx!rstPack.Close
+
+Gui.F_Pack_Sizes..Show
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Edit_Pack_Sizes_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Edit_Pack_Sizes.End
+
+Program.Sub.Check_Valid_Qty.Start
+F.Intrinsic.Control.SetErrorHandler("Check_Valid_Qty_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.fMinQty.Declare(Float)
+V.Local.fIncrement.Declare(Float)
+V.Local.fTemp.Declare(Float)
+V.Local.sMsg.Declare(String)
+V.Local.fQty1.Declare(Float)
+V.Local.fQty2.Declare(Float)
+
+F.Intrinsic.Control.If(V.Global.sPart.Trim,=,"")
+	F.Intrinsic.Control.CallSub(F_pack_sizes_unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Concat("SELECT * FROM ATG_3747_PACK_SIZES WHERE PART='",V.Global.sPart,"' AND LOC='",V.Global.sLoc,"'",V.Local.sQuery)
+F.ODBC.Connection!conx.OpenRecordsetRO("rstPack",V.Local.sQuery)
+F.Intrinsic.Control.If(V.ODBC.conx!rstPack.EOF,<>,True)
+	V.Local.fMinQty.Set(V.ODBC.conx!rstPack.FieldValTrim!MIN_ORDER_QTY)
+	V.Local.fIncrement.Set(V.ODBC.conx!rstPack.FieldValTrim!ORDER_INCREMENT)
+F.Intrinsic.Control.Else
+	F.ODBC.conx!rstPack.Close
+	F.Intrinsic.Control.CallSub(F_pack_sizes_unload)
+F.Intrinsic.Control.EndIf
+F.ODBC.conx!rstPack.Close
+
+V.Passed.777777.Set(1)
+F.Intrinsic.Control.If(V.Global.fOrderQty,<,V.Local.fMinQty)
+	F.Intrinsic.String.Concat("Order quantity does not meet minimum order quantity of ",V.Local.fMinQty,". ",V.Ambient.NewLine,"Please see Pack Sizes screen for more info.",V.Local.sMsg)
+	F.Intrinsic.UI.Msgbox(V.Local.sMsg,"Invalid Order Quantity")
+F.Intrinsic.Control.Else
+	F.Intrinsic.Math.Sub(V.Global.fOrderQty,V.Local.fMinQty,V.Local.fTemp)
+	F.Intrinsic.Math.Mod(V.Local.fTemp,V.Local.fIncrement,V.Local.fTemp)
+	F.Intrinsic.Control.If(V.Local.fTemp,<>,0)
+		F.Intrinsic.Math.Sub(V.Local.fIncrement,V.Local.fTemp,V.Local.fQty2)
+		F.Intrinsic.Math.Add(V.Global.fOrderQty,V.Local.fQty2,V.Local.fQty2)
+		F.Intrinsic.Math.Sub(V.Global.fOrderQty,V.Local.fTemp,V.Local.fQty1)
+		F.Intrinsic.String.Concat("Order quantity does not meet order increment standard.",V.Ambient.NewLine,"Valid order quantities include ",V.Local.fQty1," and ",V.Local.fQty2,".",V.Ambient.NewLine,"Please see Pack Sizes screen for more info.",V.Local.sMsg)
+		F.Intrinsic.UI.Msgbox(V.Local.sMsg,"Invalid Order Quantity")
+	F.Intrinsic.Control.Else
+		V.Passed.777777.Set(0)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(F_pack_sizes_unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Check_Valid_Qty_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_Pack_Sizes.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(f_pack_sizes_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Check_Valid_Qty.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$$}$12:00:00 AM$}$False
+Program.Sub.Comments.End
