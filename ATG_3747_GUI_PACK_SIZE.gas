@@ -1,0 +1,214 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+
+'Coded by: ERIC
+'Project Start Date: 7/13/2011
+'Hook 15930
+' Must have the latest Hook01 and OLG002
+'PreReq Quote 2203
+'F.Intrinsic.Debug.InvokeDebugger
+'F.Intrinsic.Debug.Stop
+
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.Control.CallSub(Format)
+F.Intrinsic.Control.CallSub(Packsize)
+F.Intrinsic.Control.CallSub(unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_GUI_PACK_SIZE.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Packsize.Start
+F.Intrinsic.Control.SetErrorHandler("Packsize_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+
+V.Local.sSQL.Declare(String)
+V.Local.sJob.Declare(String)
+V.Local.squery.Declare(String)
+V.Local.sSuffix.Declare(String)
+V.Local.iPK.Declare(Long)
+V.Local.iPQ.Declare(Long)
+V.Local.iOQ.Declare(Long)
+
+V.Local.sJob.Set(V.Passed.009990)
+V.Local.sSuffix.Set(V.Passed.009991)
+F.Intrinsic.Control.If(V.Local.sJob,=,"")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Else
+'	F.Intrinsic.String.Concat("Select * From ATG_3747_PACK_SIZES Left Outer Join JOB_HEADER On ATG_Pack_Sizes.Part = Job_Header.PART Where JOB = '",V.Local.sJob,"' and Suffix = '",V.Local.sSuffix,"'",V.Local.sSQL)
+	'6/17/15 TRT remove full join which is like huh?
+	'join are a no no according to the powers above....or so they say.
+	F.Intrinsic.String.Build("Select Qty_Order,Part,LOCATION From V_Job_Header Where Job ='{0}' And Suffix = '{1}'",V.Local.sJob.Trim,V.Local.sSuffix.Trim,V.Local.sSQL)
+	F.ODBC.Connection!con.OpenRecordsetRO("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,True)
+		V.Passed.GAB-LBL-2.Set(0)
+		V.Passed.GAB-LBL-4.Set(0)
+	F.Intrinsic.Control.Else
+		'get our customer values.
+		F.Intrinsic.String.Build("Select * From ATG_3747_Pack_Sizes Where Part = '{0}' AND LOC = '{1}'",V.ODBC.con!rst.FieldValTrim!Part,V.ODBC.con!rst.FieldValTrim!LOCATION,V.Local.sSQL)
+		F.ODBC.Connection!con.OpenLocalRecordsetRO("rstATG",V.Local.sSQL)
+		F.Intrinsic.Control.If(V.ODBC.con!rstATG.EOF,=,True)
+			V.Passed.GAB-LBL-2.Set(0)
+			V.Passed.GAB-LBL-4.Set(0)
+		F.Intrinsic.Control.Else
+			V.Passed.GAB-LBL-2.Set(V.ODBC.con!rstATG.FieldValTrim!ORDER_INCREMENT)
+			F.Intrinsic.Math.Div(V.ODBC.con!rst.FieldValTrim!QTY_ORDER,V.ODBC.con!rstATG.FieldValTrim!ORDER_INCREMENT,V.Local.iPQ)
+			V.Passed.GAB-LBL-4.Set(V.Local.iPQ)
+		F.Intrinsic.Control.Endif
+		F.ODBC.con!rstATG.Close
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.Close
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Packsize_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_GUI_PACK_SIZE.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Packsize.End
+
+Program.Sub.Format.Start
+F.Intrinsic.Control.SetErrorHandler("Format_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+'Set
+V.Passed.GAB-LBL-1.Set("Pack Size")
+'Left
+F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PL",202)
+'Top
+F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PT",146)
+'Width
+F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PW",53)
+'Height
+F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PH",17)
+'Color
+F.Intrinsic.Variable.SetProperty("GAB-LBL-1","FC",V.Color.Black)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-1","BC",V.Color.Yellow)
+'UnHide
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-1,"HIDE",0)
+
+V.Passed.GAB-LBL-3.Set("Package Qty")
+F.Intrinsic.Variable.SetProperty("GAB-LBL-3","PL",350)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-3","PT",146)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-3","PW",70)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-3","PH",17)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-3","FC",V.Color.Black)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-3","BC",V.Color.Yellow)
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-3,"HIDE",0)
+
+
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","PL",255)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","PT",146)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","PW",70)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","PH",17)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","FS",17)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","FC",V.Color.Black)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-2","BC",V.Color.Yellow)
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-2,"HIDE",0)
+
+
+
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","PL",420)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","PT",146)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","PW",70)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","PH",17)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","FS",17)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","FC",V.Color.Black)
+F.Intrinsic.Variable.SetProperty("GAB-LBL-4","BC",V.Color.Yellow)
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-4,"HIDE",0)
+
+V.Passed.000195.Set("Order Quantity")
+
+'HIDE
+'Router Link
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.000125,"HIDE",1)
+'Router
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.000126,"HIDE",1)
+'Rev
+F.Intrinsic.UI.ChangeCallerProperty(V.passed.000128,"HIDE",1)
+'LBL Rev
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.000202,"HIDE",1)
+'LBL Router
+F.Intrinsic.UI.ChangeCallerProperty(V.Passed.000203,"HIDE",1)
+
+
+'TOP
+'LBL Part
+F.Intrinsic.Variable.SetProperty("000199","PT",55)
+'Part Link
+F.Intrinsic.Variable.SetProperty("000131","PT",54)
+'Part
+F.Intrinsic.Variable.SetProperty("000132","PT",55)
+'Part Rev
+F.Intrinsic.Variable.SetProperty("000133","PT",55)
+'Part Desc
+F.Intrinsic.Variable.SetProperty("000134","PT",75)
+'LBL Rev001
+F.Intrinsic.Variable.SetProperty("000198","PT",55)
+'Cust Link
+F.Intrinsic.Variable.SetProperty("000136","PT",99)
+'Cust
+F.Intrinsic.Variable.SetProperty("000137","PT",100)
+'Cust Name
+F.Intrinsic.Variable.SetProperty("000139","PT",120)
+'LBL Customer
+F.Intrinsic.Variable.SetProperty("000196","PT",100)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Format_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_GUI_PACK_SIZE.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Format.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.SetErrorHandler("Unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: ATG_3747_GUI_PACK_SIZE.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+Program.Sub.Unload.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$$}$12:00:00 AM$}$False
+Program.Sub.Comments.End
